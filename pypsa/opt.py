@@ -131,10 +131,13 @@ class LConstraint(object):
         return "{} {} {}".format(self.lhs, self.sense, self.rhs)
 
 def _build_sum_expression(variables, constant=0.):
-    expr = LinearExpression()
-    expr.linear_vars = [item[1] for item in variables]
-    expr.linear_coefs = [item[0] for item in variables]
-    expr.constant = constant
+    # expr = LinearExpression(constant=constant,
+    #                         linear_coefs=[item[0] for item in variables],
+    #                         linear_vars=[item[1] for item in variables])
+    # expr.linear_vars = [item[1] for item in variables]
+    # expr.linear_coefs = [item[0] for item in variables]
+    # expr.constant = constant
+    expr = sum([z[0] * z[1] for z in variables]) + constant
     return expr
 
 def l_constraint(model,name,constraints,*args):
@@ -192,7 +195,7 @@ def l_constraint(model,name,constraints,*args):
             constant = c[2]
 
         sum_expr = _build_sum_expression(variables)
-        
+
         if sense == "==":
             constr_expr = sum_expr == constant
         elif sense == "<=":
@@ -208,7 +211,7 @@ def l_constraint(model,name,constraints,*args):
         v._data[i] = _GeneralConstraintData(constr_expr, v)
 
 
-def l_objective(model,objective=None, sense=minimize):
+def l_objective(model, objective=None, sense=minimize):
     """
     A replacement for pyomo's Objective that quickly builds linear
     objectives.
@@ -239,8 +242,11 @@ def l_objective(model,objective=None, sense=minimize):
         objective = LExpression()
 
     #initialise with a dummy
-    model.objective = Objective(expr = 0., sense=sense)
-    model.objective._expr = _build_sum_expression(objective.variables, constant=objective.constant)
+    # model.objective = Objective(expr = 0., sense=sense)
+    # model.objective._expr = _build_sum_expression(objective.variables, constant=objective.constant)
+    expr = _build_sum_expression(objective.variables, constant=objective.constant)
+    model.objective = Objective(expr=expr, sense=sense)
+
 
 def free_pyomo_initializers(obj):
     obj.construct()
