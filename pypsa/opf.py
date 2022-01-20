@@ -1164,7 +1164,7 @@ def define_linear_objective(network,snapshots):
 
         weight = network.snapshot_weightings.objective[sn]
         for gen in network.generators.index:
-            # Linear marginal cost
+            # Marginal cost provided
             if not isnan(gen_mc[gen]):
                 coefficient = gen_mc.at[gen] * weight
                 objective.variables.extend([(coefficient, model.generator_p[gen, sn])])
