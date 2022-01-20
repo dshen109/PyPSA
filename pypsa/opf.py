@@ -15,6 +15,7 @@ __copyright__ = ("Copyright 2015-2021 PyPSA Developers, see https://pypsa.readth
                  "MIT License")
 
 import numpy as np
+from numpy import isnan
 import pandas as pd
 from scipy.sparse.linalg import spsolve
 from pyomo.environ import (ConcreteModel, Var, NonNegativeReals, Constraint,
@@ -1149,20 +1150,31 @@ def define_linear_objective(network,snapshots):
 
 
     marginal_cost_it = zip(get_switchable_as_iter(network, 'Generator', 'marginal_cost', snapshots),
+                        #    get_switchable_as_iter(network, 'Generator', 'cost_curve_c0', snapshots),
+                           get_switchable_as_iter(network, 'Generator', 'cost_curve_c1', snapshots),
+                           get_switchable_as_iter(network, 'Generator', 'cost_curve_c2', snapshots),
                            get_switchable_as_iter(network, 'StorageUnit', 'marginal_cost', snapshots),
                            get_switchable_as_iter(network, 'Store', 'marginal_cost', snapshots),
                            get_switchable_as_iter(network, 'Link', 'marginal_cost', snapshots))
 
     objective = LExpression()
 
-
     for sn, marginal_cost in zip(snapshots, marginal_cost_it):
-        gen_mc, su_mc, st_mc, link_mc = marginal_cost
+        gen_mc, gen_cost1, gen_cost2, su_mc, st_mc, link_mc = marginal_cost
 
         weight = network.snapshot_weightings.objective[sn]
         for gen in network.generators.index:
-            coefficient = gen_mc.at[gen] * weight
-            objective.variables.extend([(coefficient, model.generator_p[gen, sn])])
+            # Linear marginal cost
+            if not isnan(gen_mc[gen]):
+                coefficient = gen_mc.at[gen] * weight
+                objective.variables.extend([(coefficient, model.generator_p[gen, sn])])
+            # Quadratic cost
+            else:
+                coefficient_quad = gen_cost2.at[gen] * weight
+                coefficient_linear = gen_cost1.at[gen] * weight
+                objective.variables.extend(
+                    [(coefficient_quad, model.generator_p[gen, sn] * model.generator_p[gen, sn]),
+                     (coefficient_linear, model.generator_p[gen, sn])])
 
         for su in network.storage_units.index:
             coefficient = su_mc.at[su] * weight
