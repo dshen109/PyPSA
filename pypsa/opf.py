@@ -1150,9 +1150,8 @@ def define_linear_objective(network,snapshots):
 
 
     marginal_cost_it = zip(get_switchable_as_iter(network, 'Generator', 'marginal_cost', snapshots),
-                        #    get_switchable_as_iter(network, 'Generator', 'cost_curve_c0', snapshots),
-                           get_switchable_as_iter(network, 'Generator', 'cost_curve_c1', snapshots),
-                           get_switchable_as_iter(network, 'Generator', 'cost_curve_c2', snapshots),
+                           get_switchable_as_iter(network, 'Generator', 'supply_curve_linear', snapshots),
+                           get_switchable_as_iter(network, 'Generator', 'supply_curve_quad', snapshots),
                            get_switchable_as_iter(network, 'StorageUnit', 'marginal_cost', snapshots),
                            get_switchable_as_iter(network, 'Store', 'marginal_cost', snapshots),
                            get_switchable_as_iter(network, 'Link', 'marginal_cost', snapshots))
@@ -1173,7 +1172,7 @@ def define_linear_objective(network,snapshots):
                 coefficient_quad = gen_cost2.at[gen] * weight
                 coefficient_linear = gen_cost1.at[gen] * weight
                 objective.variables.extend(
-                    [(coefficient_quad, model.generator_p[gen, sn] * model.generator_p[gen, sn]),
+                    [(coefficient_quad, model.generator_p[gen, sn] ** 2),
                      (coefficient_linear, model.generator_p[gen, sn])])
 
         for su in network.storage_units.index:
