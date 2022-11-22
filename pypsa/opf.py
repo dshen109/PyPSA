@@ -1150,6 +1150,7 @@ def define_linear_objective(network,snapshots):
 
 
     marginal_cost_it = zip(get_switchable_as_iter(network, 'Generator', 'marginal_cost', snapshots),
+                           get_switchable_as_iter(network, 'Generator', 'supply_curve_const', snapshots),
                            get_switchable_as_iter(network, 'Generator', 'supply_curve_linear', snapshots),
                            get_switchable_as_iter(network, 'Generator', 'supply_curve_quad', snapshots),
                            get_switchable_as_iter(network, 'StorageUnit', 'marginal_cost', snapshots),
@@ -1159,10 +1160,13 @@ def define_linear_objective(network,snapshots):
     objective = LExpression()
 
     for sn, marginal_cost in zip(snapshots, marginal_cost_it):
-        gen_mc, gen_cost1, gen_cost2, su_mc, st_mc, link_mc = marginal_cost
+        gen_mc, gen_cost0, gen_cost1, gen_cost2, su_mc, st_mc, link_mc = marginal_cost
 
         weight = network.snapshot_weightings.objective[sn]
         for gen in network.generators.index:
+            if not network.generators.loc[gen, 'p_nom']:
+                continue
+
             # Marginal cost provided
             if not isnan(gen_mc[gen]):
                 coefficient = gen_mc.at[gen] * weight
@@ -1171,9 +1175,18 @@ def define_linear_objective(network,snapshots):
             else:
                 coefficient_quad = gen_cost2.at[gen] * weight
                 coefficient_linear = gen_cost1.at[gen] * weight
-                objective.variables.extend(
-                    [(coefficient_quad, model.generator_p[gen, sn] ** 2),
-                     (coefficient_linear, model.generator_p[gen, sn])])
+                coefficient_const = gen_cost0.at[gen] * weight
+                if network.generators.loc[gen, 'committable']:
+                    objective.variables.extend(
+                        [(coefficient_quad, model.generator_p[gen, sn] ** 2),
+                        (coefficient_linear, model.generator_p[gen, sn]),
+                        (coefficient_const, model.generator_status[gen, sn])
+                        ])
+                else:
+                    objective.variables.extend(
+                        [(coefficient_quad, model.generator_p[gen, sn] ** 2),
+                        (coefficient_linear, model.generator_p[gen, sn])
+                        ])
 
         for su in network.storage_units.index:
             coefficient = su_mc.at[su] * weight
